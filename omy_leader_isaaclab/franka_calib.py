@@ -87,6 +87,7 @@ def main():
                     help="serial = L100 on this machine (default); tcp = publisher.py on another host")
     ap.add_argument("--port", default="/dev/robotis_left", help="serial device (source=serial)")
     ap.add_argument("--baudrate", type=int, default=4_000_000)
+    ap.add_argument("--gripper-open", type=float, default=48.2)
     ap.add_argument("--tcp-host", default="127.0.0.1")
     ap.add_argument("--tcp-port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--out", default="omy_calib.json")
@@ -94,7 +95,15 @@ def main():
     ap.add_argument("--center", default="joint_1,joint_5", help="joints whose zero is the range midpoint instead of the READY reading (left/right symmetric)")
     args = ap.parse_args()
 
-    client = open_reader(args.source, args.port, args.baudrate, args.tcp_host, args.tcp_port)
+    client = open_reader(args.source, args.port, args.baudrate, args.tcp_host, args.tcp_port,
+                         gripper_open_pos=args.gripper_open)
+    try:
+        _calibrate(args, client)
+    finally:
+        client.close()
+
+
+def _calibrate(args, client):
     print("[calib] connecting to publisher ...")
     _read(client)
     print("[calib] OK, reading L100.")

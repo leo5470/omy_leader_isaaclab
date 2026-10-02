@@ -33,6 +33,7 @@ class OmyLeaderCfg(DeviceCfg):
     source: str = "serial"  # "serial" (DynamixelSDK on this host) | "tcp" (publisher.py on another host)
     port: str = "/dev/robotis_left"
     baudrate: int = 4_000_000
+    gripper_open_pos: float = 48.2  # plugin RANGE_0_100 spring rest position
     tcp_host: str = "127.0.0.1"
     tcp_port: int = 5555
     calib_path: str = ""  # omy_calib.json (signs / zeros / gripper / wrist mode); "" = defaults
@@ -117,10 +118,11 @@ class OmyLeaderDevice(DeviceBase):
         elif c.source == "serial":
             from .omy_serial import OmySerialLeader
 
-            self._serial = OmySerialLeader(c.port, c.baudrate)
+            self._serial = OmySerialLeader(c.port, c.baudrate, gripper_open_pos=c.gripper_open_pos)
             self._buf: tuple[dict | None, float] = (None, 0.0)
             self._stop = threading.Event()
-            threading.Thread(target=self._serial_loop, daemon=True).start()
+            self._serial_thread = threading.Thread(target=self._serial_loop, daemon=True)
+            self._serial_thread.start()
             self._latest = lambda: (self._buf[0], time.time() - self._buf[1])
         else:
             raise ValueError(f"unknown source {c.source!r} (serial | tcp)")
@@ -181,6 +183,7 @@ class OmyLeaderDevice(DeviceBase):
     def close(self):
         if self.cfg.source == "serial":
             self._stop.set()
+            self._serial_thread.join()
             self._serial.close()
         else:
             self._client.close()

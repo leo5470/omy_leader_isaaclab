@@ -36,6 +36,7 @@ def main():
                     help="serial = L100 on this machine (default); tcp = publisher.py on another host")
     ap.add_argument("--port", default="/dev/robotis_left", help="serial device (source=serial)")
     ap.add_argument("--baudrate", type=int, default=4_000_000)
+    ap.add_argument("--gripper-open", type=float, default=48.2)
     ap.add_argument("--tcp-host", default="127.0.0.1")
     ap.add_argument("--tcp-port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--calib", default="", help="omy_calib.json; if given, also show mapped Franka joints")
@@ -44,7 +45,8 @@ def main():
 
     cfg = load_calib(args.calib) if args.calib else DEFAULT_OMY_TO_FRANKA_CONFIG
     rt = OmyToFrankaRetarget(cfg)
-    client = open_reader(args.source, args.port, args.baudrate, args.tcp_host, args.tcp_port)
+    client = open_reader(args.source, args.port, args.baudrate, args.tcp_host, args.tcp_port,
+                         gripper_open_pos=args.gripper_open)
     d = math.degrees
     print("waiting for stream ...")
     try:
@@ -65,6 +67,8 @@ def main():
             time.sleep(1.0 / args.hz)
     except KeyboardInterrupt:
         print("\n")
+    finally:
+        client.close()
 
 
 if __name__ == "__main__":

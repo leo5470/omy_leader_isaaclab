@@ -23,7 +23,7 @@ and with Isaac Lab `main`):
 
 ```bash
 # inside your Isaac Lab python environment
-pip install git+https://github.com/charlie8612/omy_leader_isaaclab
+pip install git+https://github.com/leo5470/omy_leader_isaaclab@robolab-trigger-fix
 ```
 
 Dependencies are only `numpy` and `dynamixel-sdk` (the L100 is read directly over Protocol 2.0, 4 Mbps).
@@ -32,6 +32,30 @@ instead, `[viewer]` for the laptop video viewer.
 
 For the OMY targets install ROBOTIS Lab as well and add the 3-line hook from `scripts/cyclo_lab_hook.patch`
 to `cyclo_lab/__init__.py` (this is what a `record_demos.py` invocation needs to see the device and envs).
+
+## RoboLab trigger correction
+
+This fork applies RoboLab's L100 serial trigger correction to upstream commit
+`ed4608bd8c49133e3b9fc9d231bee651d8489b65`. No post-install patch is required.
+
+The spring rest uses the LeRobot RANGE_0_100 conversion: `--gripper-open 48.2`
+sets the goal to `int(48.2 / 100 * 4095) = 1973` ticks. The reader configures
+`Drive_Mode=1` and `Homing_Offset=100` with torque disabled, writes the spring goal
+before enabling torque, then reasserts and checks it afterward because the XC330
+can reset the goal when torque is enabled. Background readers stop before cleanup;
+cleanup disables trigger torque and closes the serial port.
+
+Gripper samples preserve the legacy publisher's half-angle units:
+`(present_position - goal_ticks) * pi / 4095`. Arm readings keep their existing
+full-radian units. The publisher, calibration, monitor, and Isaac Lab device all
+forward custom spring rest positions. Recalibrate gripper endpoints if they were
+captured using the uncorrected serial reader.
+
+The trigger regression tests use a fake Dynamixel bus and do not open hardware:
+
+```bash
+python -m pytest tests -q
+```
 
 ## Quick start (leader plugged into the sim machine)
 
